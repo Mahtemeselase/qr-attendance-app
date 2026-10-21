@@ -470,9 +470,9 @@ Dawit Haile Selassie</textarea>
     function exportArchiveCSV() {
       const archive = JSON.parse(localStorage.getItem('permanent_archive') || '[]');
       if (archive.length === 0) return;
-      const csvRows = ['Timestamp,Date,Student_ID,Display_Name'];
+      const csvRows = ['Timestamp,Date,Student_Name'];
       archive.forEach(r => {
-        csvRows.push(`"${r.timestamp}","${r.date}","${r.student}","${r.displayName}"`);
+        csvRows.push(`"${r.timestamp}","${r.date}","${r.displayName}"`);
       });
       const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
       const a = document.createElement('a');
