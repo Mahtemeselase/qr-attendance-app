@@ -1,24 +1,21 @@
 {
   "name": "QR Classroom Attendance",
   "short_name": "Attendance",
-  "description": "Offline-first tri-generational QR attendance scanner with Google Sheets sync.",
   "start_url": "./index.html",
-  "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#0f172a",
   "theme_color": "#2563eb",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='36' fill='%232563eb'/%3E%3Cpath d='M44 44h40v40H44V44zm12 12v16h16V56H56zm52-12h40v40h-40V44zm12 12v16h16V56h-16zM44 108h40v40H44v-40zm12 12v16h16v-16H56zm52-12h16v16h-16v-16zm24 0h16v16h-16v-16zm-24 24h16v16h-16v-16zm24 0h16v16h-16v-16z' fill='%23ffffff'/%3E%3C/svg%3E",
+      "src": "./icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%232563eb'/%3E%3Cpath d='M112 112h112v112H112V112zm32 32v48h48v-48h-48zm144-32h112v112H288V112zm32 32v48h48v-48h-48zM112 288h112v112H112V288zm32 32v48h48v-48h-48zm144-32h48v48h-48v-48zm64 0h48v48h-48v-48zm-64 64h48v48h-48v-48zm64 0h48v48h-48v-48z' fill='%23ffffff'/%3E%3C/svg%3E",
+      "src": "./icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]
