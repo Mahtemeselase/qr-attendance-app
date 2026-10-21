@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Attendance" />
+  <title>QR Classroom Attendance</title>
+
+  <!-- Step 3: Native Manifest Link & Service Worker Registration -->
+  <link rel="manifest" href="./manifest.json" />
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('Service Worker registered:', reg.scope))
+          .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+
+  <!-- QR Scanner & Generator Libraries -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #2563eb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 70px; }
+    header {
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .brand { font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+    .status-pill {
+      font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 999px;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .status-online { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .status-offline { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+    .container { max-width: 600px; margin: 0 auto; padding: 16px; }
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px; margin-bottom: 16px;
+    }
+    .card-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+
+    /* Install Banner */
+    #install-banner {
+      display: none; background: linear-gradient(90deg, #1d4ed8, #2563eb);
+      padding: 12px 16px; border-radius: 10px; margin-bottom: 16px;
+      align-items: center; justify-content: space-between; gap: 12px;
+    }
+    #install-banner.show { display: flex; }
+
+    /* Buttons & Inputs */
+    button {
+      background: var(--primary); color: #fff; border: none; padding: 10px 14px;
+      border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer;
+    }
+    button.secondary { background: #334155; color: var(--text); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    input, textarea, select {
+      width: 100%; background: #0f172a; border: 1px solid var(--border);
+      color: var(--text); padding: 10px 12px; border-radius: 8px; font-size: 0.9rem;
+    }
+
+    /* Scanner & Feedback */
+    #reader { width: 100%; border-radius: 10px; overflow: hidden; background: #000; min-height: 240px; }
+    #scan-toast {
+      display: none; padding: 12px; border-radius: 8px; font-weight: 600;
+      margin-top: 12px; text-align: center; font-size: 0.9rem;
+    }
+    .toast-ok { display: block !important; background: rgba(16, 185, 129, 0.2); border: 1px solid var(--success); color: #6ee7b7; }
+    .toast-dup { display: block !important; background: rgba(245, 158, 11, 0.2); border: 1px solid var(--warning); color: #fcd34d; }
+    .toast-err { display: block !important; background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); color: #fca5a5; }
+
+    /* Roster List */
+    .list-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.88rem;
+    }
+    .list-item:last-child { border-bottom: none; }
+    .mono { font-family: monospace; font-size: 0.75rem; color: var(--muted); }
+
+    /* Bottom Navigation */
+    nav.bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; background: var(--card);
+      border-top: 1px solid var(--border); display: flex; justify-content: space-around;
+      padding: 8px 0; z-index: 50;
+    }
+    .nav-btn {
+      background: transparent; color: var(--muted); font-size: 0.78rem;
+      display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 16px;
+    }
+    .nav-btn.active { color: #60a5fa; font-weight: 700; }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* Printable Badges */
+    .badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 14px; }
+    .qr-badge {
+      background: #fff; color: #000; padding: 14px; border-radius: 10px;
+      text-align: center; border: 2px solid #000; display: flex; flex-direction: column; align-items: center;
+    }
+    .qr-badge h4 { font-size: 0.95rem; margin-top: 8px; }
+    .qr-badge p { font-family: monospace; font-size: 0.7rem; color: #333; margin-top: 2px; word-break: break-all; }
+
+    @media print {
+      header, nav.bottom-nav, .no-print { display: none !important; }
+      body { background: #fff; color: #000; padding: 0; }
+      .container { max-width: 100%; padding: 0; }
+      #tab-badges { display: block !important; }
+      .badge-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+      .qr-badge { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span>📋 Attendance PWA</span>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <span id="net-status" class="status-pill status-online">● Online</span>
+      <button id="sync-now-btn" class="secondary" style="padding:6px 10px; font-size:0.75rem;" onclick="attemptSync(true)">Sync Now</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Native PWA Install Prompt Banner -->
+    <div id="install-banner">
+      <div>
+        <div style="font-weight:700; font-size:0.9rem;">Install Teacher App</div>
+        <div style="font-size:0.78rem; opacity:0.9;">Add to your phone's home screen for full-screen offline scanning.</div>
+      </div>
+      <button id="install-btn" style="background:#fff; color:#1e3a8a; white-space:nowrap;">Install App</button>
+    </div>
+
+    <!-- TAB 1: SCANNER & AUTO-CLEARING SYNC QUEUE -->
+    <div id="tab-scanner" class="tab-pane active">
+      <div class="card">
+        <div class="card-title">
+          <span>Camera QR Scanner</span>
+          <button id="cam-toggle-btn" onclick="toggleCamera()">Start Camera</button>
+        </div>
+        <div id="reader"></div>
+        <div id="scan-toast"></div>
+
+        <!-- Quick Simulation / Manual Entry -->
+        <div style="margin-top:14px; display:flex; gap:8px;">
+          <input type="text" id="manual-input" placeholder="Or type/test: Yonas Tewodros Mekonnen" />
+          <button class="secondary" onclick="handleManualSubmit()">Record</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>Pending Cloud Upload Queue</span>
+          <span id="queue-count" class="status-pill status-offline">0 Pending</span>
+        </div>
+        <p style="font-size:0.78rem; color:var(--muted); margin-bottom:10px;">
+          Scans stay here while offline and automatically clear the moment Google Sheets confirms upload.
+        </p>
+        <div id="sync-error-box" class="toast-err" style="display:none; margin-bottom:10px; font-size:0.78rem;"></div>
+        <div id="pending-list"></div>
+      </div>
+    </div>
+
+    <!-- TAB 2: PERMANENT ON-DEVICE ARCHIVE -->
+    <div id="tab-archive" class="tab-pane">
+      <div class="card">
+        <div class="card-title">
+          <span>Permanent Device History</span>
+          <button class="secondary" onclick="exportArchiveCSV()">Export CSV</button>
+        </div>
+        <p style="font-size:0.78rem; color:var(--muted); margin-bottom:12px;">
+          Every scan is permanently stored on this phone (<span id="archive-count">0</span> total records), even after clearing from the upload queue.
+        </p>
+        <div id="archive-list"></div>
+      </div>
+    </div>
+
+    <!-- TAB 3: QR BADGE GENERATOR -->
+    <div id="tab-badges" class="tab-pane">
+      <div class="card no-print">
+        <div class="card-title">
+          <span>3-Tier Name QR Badge Generator</span>
+          <button onclick="window.print()">Print Badges</button>
+        </div>
+        <p style="font-size:0.78rem; color:var(--muted); margin-bottom:8px;">
+          Enter one student per line (First Father Grandfather). Automatically normalizes to <code>FIRST_FATHER_GRANDFATHER</code>.
+        </p>
+        <textarea id="roster-input" rows="6" oninput="renderBadges()">Yonas Tewodros Mekonnen
+Abebe Kebede Tadesse
+Sara Mohammed Ali
+Dawit Haile Selassie</textarea>
+      </div>
+      <div id="badge-container" class="badge-grid"></div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" onclick="switchTab('scanner', this)">📷 Scanner</button>
+    <button class="nav-btn" onclick="switchTab('archive', this)">🗄️ Device Log</button>
+    <button class="nav-btn" onclick="switchTab('badges', this)">🪪 QR Badges</button>
+  </nav>
+
+  <script>
+    // Your Deployed Google Apps Script Endpoint
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxXXwZVFkyxBtwfYcmyi-Z9gyI-KXRKCM7yZqUAcqTNGz3sY9BK_4kYQ5aFEAXfU5KYCw/exec';
+
+    let html5QrCode = null;
+    let isCameraRunning = false;
+    let isSyncing = false;
+    let deferredInstallPrompt = null;
+
+    // 1. String Normalization Engine: "Yonas  Tewodros Mekonnen " -> "YONAS_TEWODROS_MEKONNEN"
+    function normalizeStudentName(raw) {
+      if (!raw) return '';
+      return raw
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9\s_]/g, '')
+        .replace(/[\s_]+/g, '_');
+    }
+
+    function formatDisplayName(normalized) {
+      return normalized
+        .split('_')
+        .filter(Boolean)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+    }
+
+    // 2. Web Audio API Feedback
+    function playBeep(type) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = type === 'success' ? 880 : 320;
+        gain.gain.value = 0.12;
+        osc.start();
+        osc.stop(ctx.currentTime + (type === 'success' ? 0.12 : 0.25));
+      } catch (e) {}
+    }
+
+    // 3. Process Scan: Idempotent per day + Dual-Layer LocalStorage Write
+    function processScan(rawPayload) {
+      const normalized = normalizeStudentName(rawPayload);
+      if (!normalized || normalized.split('_').length < 2) {
+        showToast('Invalid QR format. Requires at least First & Father name.', 'err');
+        return;
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const archive = JSON.parse(localStorage.getItem('permanent_archive') || '[]');
+
+      // Check idempotency across today's permanent archive
+      const alreadyScannedToday = archive.some(
+        r => r.student === normalized && r.date === today
+      );
+
+      if (alreadyScannedToday) {
+        playBeep('dup');
+        showToast(`Already Scanned Today: ${formatDisplayName(normalized)}`, 'dup');
+        return;
+      }
+
+      const record = {
+        id: Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        timestamp: new Date().toISOString(),
+        date: today,
+        student: normalized,
+        displayName: formatDisplayName(normalized)
+      };
+
+      // Write 1: Temporary Sync Queue
+      const syncQueue = JSON.parse(localStorage.getItem('pending_sync') || '[]');
+      syncQueue.push(record);
+      localStorage.setItem('pending_sync', JSON.stringify(syncQueue));
+
+      // Write 2: Permanent Device Archive
+      archive.unshift(record);
+      localStorage.setItem('permanent_archive', JSON.stringify(archive));
+
+      playBeep('success');
+      showToast(`Recorded: ${record.displayName}`, 'ok');
+      updateUI();
+      attemptSync(false);
+    }
+
+    // 4. Verified Google Sheets Sync (Only clears queue on explicit JSON status === "success")
+    async function attemptSync(manualTrigger = false) {
+      updateNetworkPill();
+      if (!navigator.onLine || isSyncing) return;
+
+      const syncQueue = JSON.parse(localStorage.getItem('pending_sync') || '[]');
+      if (syncQueue.length === 0) return;
+
+      isSyncing = true;
+      const errBox = document.getElementById('sync-error-box');
+      errBox.style.display = 'none';
+      document.getElementById('sync-now-btn').textContent = 'Syncing...';
+
+      try {
+        // Send as text/plain without no-cors so we can read the actual JSON response from Google
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ records: syncQueue }),
+          redirect: 'follow'
+        });
+
+        const textResult = await response.text();
+        let result = null;
+        try {
+          result = JSON.parse(textResult);
+        } catch (parseErr) {
+          throw new Error('Apps Script returned HTML instead of JSON. Re-deploy your Apps Script as a New Version with access set to Anyone.');
+        }
+
+        if (result && result.status === 'success') {
+          // Remove only the records that were successfully uploaded
+          const uploadedIds = new Set(syncQueue.map(r => r.id));
+          const currentQueue = JSON.parse(localStorage.getItem('pending_sync') || '[]');
+          const remaining = currentQueue.filter(r => !uploadedIds.has(r.id));
+          localStorage.setItem('pending_sync', JSON.stringify(remaining));
+          updateUI();
+        } else {
+          throw new Error((result && result.message) || 'Unknown script error');
+        }
+      } catch (error) {
+        console.error('Sync failed:', error);
+        errBox.textContent = 'Sync Blocked: ' + error.message;
+        errBox.style.display = 'block';
+      } finally {
+        isSyncing = false;
+        document.getElementById('sync-now-btn').textContent = 'Sync Now';
+      }
+    }
+
+    // 5. UI Rendering & Helpers
+    function updateUI() {
+      const syncQueue = JSON.parse(localStorage.getItem('pending_sync') || '[]');
+      const archive = JSON.parse(localStorage.getItem('permanent_archive') || '[]');
+
+      document.getElementById('queue-count').textContent = `${syncQueue.length} Pending`;
+      document.getElementById('queue-count').className = syncQueue.length === 0
+        ? 'status-pill status-online'
+        : 'status-pill status-offline';
+
+      const pendingContainer = document.getElementById('pending-list');
+      if (syncQueue.length === 0) {
+        pendingContainer.innerHTML = `<div style="text-align:center; padding:18px; color:var(--muted); font-size:0.85rem;">✅ All scans uploaded to Google Sheets! Dashboard queue is clear.</div>`;
+      } else {
+        pendingContainer.innerHTML = syncQueue.map(r => `
+          <div class="list-item">
+            <div>
+              <div style="font-weight:600;">${r.displayName}</div>
+              <div class="mono">${r.student}</div>
+            </div>
+            <div class="mono">${new Date(r.timestamp).toLocaleTimeString()}</div>
+          </div>
+        `).join('');
+      }
+
+      document.getElementById('archive-count').textContent = archive.length;
+      const archiveContainer = document.getElementById('archive-list');
+      archiveContainer.innerHTML = archive.length === 0
+        ? `<div style="text-align:center; padding:18px; color:var(--muted); font-size:0.85rem;">No scans recorded on this device yet.</div>`
+        : archive.map(r => `
+          <div class="list-item">
+            <div>
+              <div style="font-weight:600;">${r.displayName}</div>
+              <div class="mono">${r.student}</div>
+            </div>
+            <div class="mono">${r.date} ${new Date(r.timestamp).toLocaleTimeString()}</div>
+          </div>
+        `).join('');
+    }
+
+    function showToast(msg, type) {
+      const t = document.getElementById('scan-toast');
+      t.textContent = msg;
+      t.className = type === 'ok' ? 'toast-ok' : (type === 'dup' ? 'toast-dup' : 'toast-err');
+    }
+
+    function handleManualSubmit() {
+      const input = document.getElementById('manual-input');
+      if (!input.value.trim()) return;
+      processScan(input.value);
+      input.value = '';
+    }
+
+    // 6. Camera Control
+    async function toggleCamera() {
+      const btn = document.getElementById('cam-toggle-btn');
+      if (isCameraRunning && html5QrCode) {
+        await html5QrCode.stop();
+        isCameraRunning = false;
+        btn.textContent = 'Start Camera';
+        return;
+      }
+      try {
+        html5QrCode = new Html5Qrcode('reader');
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
+          (decodedText) => processScan(decodedText),
+          () => {}
+        );
+        isCameraRunning = true;
+        btn.textContent = 'Stop Camera';
+      } catch (err) {
+        showToast('Camera requires HTTPS and permission: ' + err, 'err');
+      }
+    }
+
+    // 7. Printable QR Badges
+    function renderBadges() {
+      const lines = document.getElementById('roster-input').value.split('\n').map(l => l.trim()).filter(Boolean);
+      const container = document.getElementById('badge-container');
+      container.innerHTML = '';
+      lines.forEach((line, idx) => {
+        const norm = normalizeStudentName(line);
+        if (!norm) return;
+        const card = document.createElement('div');
+        card.className = 'qr-badge';
+        const qrHolder = document.createElement('div');
+        qrHolder.id = 'qr-item-' + idx;
+        card.appendChild(qrHolder);
+        const title = document.createElement('h4');
+        title.textContent = formatDisplayName(norm);
+        const sub = document.createElement('p');
+        sub.textContent = norm;
+        card.appendChild(title);
+        card.appendChild(sub);
+        container.appendChild(card);
+
+        new QRCode(qrHolder, {
+          text: norm,
+          width: 140,
+          height: 140,
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      });
+    }
+
+    // 8. Export Permanent Device Log
+    function exportArchiveCSV() {
+      const archive = JSON.parse(localStorage.getItem('permanent_archive') || '[]');
+      if (archive.length === 0) return;
+      const csvRows = ['Timestamp,Date,Student_ID,Display_Name'];
+      archive.forEach(r => {
+        csvRows.push(`"${r.timestamp}","${r.date}","${r.student}","${r.displayName}"`);
+      });
+      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `attendance_device_backup_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+    }
+
+    function switchTab(tab, btn) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    function updateNetworkPill() {
+      const pill = document.getElementById('net-status');
+      if (navigator.onLine) {
+        pill.textContent = '● Online';
+        pill.className = 'status-pill status-online';
+      } else {
+        pill.textContent = '● Offline';
+        pill.className = 'status-pill status-offline';
+      }
+    }
+
+    // 9. Native PWA Install Prompt Handler
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      document.getElementById('install-banner').classList.add('show');
+    });
+
+    document.getElementById('install-btn').addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      if (outcome === 'accepted') {
+        document.getElementById('install-banner').classList.remove('show');
+      }
+      deferredInstallPrompt = null;
+    });
+
+    window.addEventListener('online', () => attemptSync(false));
+    window.addEventListener('offline', updateNetworkPill);
+
+    window.addEventListener('DOMContentLoaded', () => {
+      updateNetworkPill();
+      updateUI();
+      renderBadges();
+      attemptSync(false);
+    });
+  </script>
+</body>
+</html>
