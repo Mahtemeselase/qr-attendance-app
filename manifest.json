@@ -1,8 +1,11 @@
 {
-  "name": "QR Classroom Attendance",
-  "short_name": "Attendance",
+  "name": "የቤተ-ክርስቲያን የተማሪዎች አቴንዳንስ",
+  "short_name": "አቴንዳንስ",
+  "description": "የቤተ-ክርስቲያን የተማሪዎች የQR አቴንዳንስ መቆጣጠሪያ",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0f172a",
   "theme_color": "#2563eb",
   "icons": [

@@ -1,15 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="am">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#2563eb" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Attendance" />
-  <title>QR Classroom Attendance</title>
+  <meta name="apple-mobile-web-app-title" content="አቴንዳንስ" />
+  <title>የቤተ-ክርስቲያን የተማሪዎች አቴንዳንስ</title>
 
-  <!-- Step 3: Native Manifest Link & Service Worker Registration -->
   <link rel="manifest" href="./manifest.json" />
   <script>
     if ('serviceWorker' in navigator) {
@@ -37,29 +36,33 @@
       --warning: #f59e0b;
       --danger: #ef4444;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-    body { background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 70px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Noto Sans Ethiopic', system-ui, -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 80px; }
     header {
       background: var(--card); border-bottom: 1px solid var(--border);
       padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;
-      position: sticky; top: 0; z-index: 50;
+      position: sticky; top: 0; z-index: 50; gap: 8px; flex-wrap: wrap;
     }
-    .brand { font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+    .brand { font-weight: 700; font-size: 1rem; display: flex; flex-direction: column; }
+    .role-badge { font-size: 0.75rem; color: #60a5fa; font-weight: 600; margin-top: 2px; }
+    .ec-date-banner {
+      background: rgba(37, 99, 235, 0.15); border-bottom: 1px solid rgba(37, 99, 235, 0.3);
+      color: #93c5fd; font-size: 0.8rem; font-weight: 600; text-align: center; padding: 6px 12px;
+    }
     .status-pill {
-      font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 999px;
-      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.74rem; font-weight: 600; padding: 4px 10px; border-radius: 999px;
+      display: inline-flex; align-items: center; gap: 5px;
     }
     .status-online { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
     .status-offline { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
 
-    .container { max-width: 600px; margin: 0 auto; padding: 16px; }
+    .container { max-width: 620px; margin: 0 auto; padding: 16px; }
     .card {
       background: var(--card); border: 1px solid var(--border);
       border-radius: 12px; padding: 16px; margin-bottom: 16px;
     }
-    .card-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .card-title { font-size: 0.96rem; font-weight: 700; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 
-    /* Install Banner */
     #install-banner {
       display: none; background: linear-gradient(90deg, #1d4ed8, #2563eb);
       padding: 12px 16px; border-radius: 10px; margin-bottom: 16px;
@@ -67,65 +70,88 @@
     }
     #install-banner.show { display: flex; }
 
-    /* Buttons & Inputs */
     button {
       background: var(--primary); color: #fff; border: none; padding: 10px 14px;
-      border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer;
+      border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: opacity 0.15s;
     }
+    button:hover { opacity: 0.92; }
     button.secondary { background: #334155; color: var(--text); }
+    button.danger { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid var(--danger); }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
+
     input, textarea, select {
       width: 100%; background: #0f172a; border: 1px solid var(--border);
-      color: var(--text); padding: 10px 12px; border-radius: 8px; font-size: 0.9rem;
+      color: var(--text); padding: 10px 12px; border-radius: 8px; font-size: 0.92rem;
     }
+    label.field-label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
 
-    /* Scanner & Feedback */
+    .mode-switch {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+      background: #0f172a; padding: 5px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 14px;
+    }
+    .mode-btn {
+      background: transparent; color: var(--muted); padding: 9px 10px; font-size: 0.82rem; border-radius: 7px;
+    }
+    .mode-btn.active { background: var(--primary); color: #fff; }
+
     #reader { width: 100%; border-radius: 10px; overflow: hidden; background: #000; min-height: 240px; }
-    #scan-toast {
-      display: none; padding: 12px; border-radius: 8px; font-weight: 600;
-      margin-top: 12px; text-align: center; font-size: 0.9rem;
+    .toast {
+      display: none; padding: 11px 12px; border-radius: 8px; font-weight: 600;
+      margin-top: 12px; text-align: center; font-size: 0.88rem;
     }
     .toast-ok { display: block !important; background: rgba(16, 185, 129, 0.2); border: 1px solid var(--success); color: #6ee7b7; }
     .toast-dup { display: block !important; background: rgba(245, 158, 11, 0.2); border: 1px solid var(--warning); color: #fcd34d; }
     .toast-err { display: block !important; background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); color: #fca5a5; }
 
-    /* Roster List */
     .list-item {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.88rem;
+      padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; gap: 10px;
     }
     .list-item:last-child { border-bottom: none; }
     .mono { font-family: monospace; font-size: 0.75rem; color: var(--muted); }
 
-    /* Bottom Navigation */
+    .student-pick-list {
+      max-height: 220px; overflow-y: auto; border: 1px solid var(--border);
+      border-radius: 8px; background: #0f172a; margin-top: 8px;
+    }
+    .student-pick-item {
+      padding: 10px 12px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; cursor: pointer;
+    }
+    .student-pick-item:hover { background: rgba(37, 99, 235, 0.15); }
+
     nav.bottom-nav {
       position: fixed; bottom: 0; left: 0; right: 0; background: var(--card);
-      border-top: 1px solid var(--border); display: flex; justify-content: space-around;
+      border-top: 1px solid var(--border); display: none; justify-content: space-around;
       padding: 8px 0; z-index: 50;
     }
     .nav-btn {
-      background: transparent; color: var(--muted); font-size: 0.78rem;
+      background: transparent; color: var(--muted); font-size: 0.82rem;
       display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 16px;
     }
     .nav-btn.active { color: #60a5fa; font-weight: 700; }
 
-    .tab-pane { display: none; }
-    .tab-pane.active { display: block; }
+    .view-section { display: none; }
+    .view-section.active { display: block; }
 
-    /* Printable Badges */
-    .badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 14px; }
+    .badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(195px, 1fr)); gap: 12px; margin-top: 14px; }
     .qr-badge {
       background: #fff; color: #000; padding: 14px; border-radius: 10px;
-      text-align: center; border: 2px solid #000; display: flex; flex-direction: column; align-items: center;
+      text-align: center; border: 2px solid #000; display: flex; flex-direction: column; align-items: center; position: relative;
     }
-    .qr-badge h4 { font-size: 0.95rem; margin-top: 8px; }
-    .qr-badge p { font-family: monospace; font-size: 0.7rem; color: #333; margin-top: 2px; word-break: break-all; }
+    .qr-badge h4 { font-size: 0.96rem; margin-top: 8px; }
+    .qr-badge .grade-tag { font-size: 0.78rem; font-weight: 700; color: #1e3a8a; margin-top: 2px; }
+    .qr-badge p { font-family: monospace; font-size: 0.68rem; color: #444; margin-top: 2px; word-break: break-all; }
+    .qr-badge .remove-badge-btn {
+      position: absolute; top: 6px; right: 6px; background: #ef4444; color: #fff;
+      font-size: 0.68rem; padding: 2px 6px; border-radius: 4px;
+    }
 
     @media print {
-      header, nav.bottom-nav, .no-print { display: none !important; }
+      header, .ec-date-banner, nav.bottom-nav, .no-print, .remove-badge-btn { display: none !important; }
       body { background: #fff; color: #000; padding: 0; }
       .container { max-width: 100%; padding: 0; }
-      #tab-badges { display: block !important; }
+      #view-admin-badges { display: block !important; }
       .badge-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
       .qr-badge { page-break-inside: avoid; }
     }
@@ -135,109 +161,420 @@
 
   <header>
     <div class="brand">
-      <span>📋 Attendance PWA</span>
+      <span>⛪ የቤተ-ክርስቲያን አቴንዳንስ</span>
+      <span id="user-role-subtitle" class="role-badge">ተቆልፏል — እባክዎ ይግቡ</span>
     </div>
-    <div style="display:flex; gap:8px; align-items:center;">
-      <span id="net-status" class="status-pill status-online">● Online</span>
-      <button id="sync-now-btn" class="secondary" style="padding:6px 10px; font-size:0.75rem;" onclick="attemptSync(true)">Sync Now</button>
+    <div style="display:flex; gap:6px; align-items:center;">
+      <span id="net-status" class="status-pill status-online">● መስመር ላይ</span>
+      <button id="sync-now-btn" class="secondary" style="padding:6px 10px; font-size:0.76rem;" onclick="syncAllWithCloud(true)">አመሳስል</button>
+      <button id="logout-btn" class="danger" style="display:none; padding:6px 10px; font-size:0.76rem;" onclick="handleLogout()">ውጣ</button>
     </div>
   </header>
 
+  <div id="ec-today-banner" class="ec-date-banner"></div>
+
   <div class="container">
     <!-- Native PWA Install Prompt Banner -->
-    <div id="install-banner">
+    <div id="install-banner" class="no-print">
       <div>
-        <div style="font-weight:700; font-size:0.9rem;">Install Teacher App</div>
-        <div style="font-size:0.78rem; opacity:0.9;">Add to your phone's home screen for full-screen offline scanning.</div>
+        <div style="font-weight:700; font-size:0.92rem;">መተግበሪያውን ይጫኑ (Install)</div>
+        <div style="font-size:0.78rem; opacity:0.9;">ያለ ኢንተርኔት በቀላሉ ለመጠቀም ወደ ስልክዎ ያውርዱ።</div>
       </div>
-      <button id="install-btn" style="background:#fff; color:#1e3a8a; white-space:nowrap;">Install App</button>
+      <button id="install-btn" style="background:#fff; color:#1e3a8a; white-space:nowrap;">ጫን (Install)</button>
     </div>
 
-    <!-- TAB 1: SCANNER & AUTO-CLEARING SYNC QUEUE -->
-    <div id="tab-scanner" class="tab-pane active">
+    <!-- ==========================================
+         VIEW 0: AUTHENTICATION GATE (LOGIN SCREEN)
+         ========================================== -->
+    <div id="view-login" class="view-section active">
       <div class="card">
         <div class="card-title">
-          <span>Camera QR Scanner</span>
-          <button id="cam-toggle-btn" onclick="toggleCamera()">Start Camera</button>
+          <span>🔐 ወደ ሲስተሙ መግቢያ</span>
+          <button class="secondary" style="font-size:0.75rem; padding:5px 9px;" onclick="syncDownDirectory(true)">መለያዎችን አድስ</button>
+        </div>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:14px;">
+          በተሰጠዎት የተጠቃሚ ስም (Username) እና የሚስጥር ቁጥር (PIN) ይግቡ።
+        </p>
+
+        <div style="margin-bottom:12px;">
+          <label class="field-label">የተጠቃሚ ስም (Username)</label>
+          <input type="text" id="login-username" placeholder="ምሳሌ፦ kidase_g7 ወይም admin" autocomplete="username" />
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label class="field-label">የሚስጥር ቁጥር (PIN)</label>
+          <input type="password" id="login-pin" inputmode="numeric" placeholder="••••" autocomplete="current-password" />
+        </div>
+
+        <button style="width:100%; padding:12px; font-size:0.95rem;" onclick="handleLogin()">ግባ (Sign In)</button>
+        <div id="login-toast" class="toast"></div>
+      </div>
+    </div>
+
+    <!-- ==========================================
+         VIEW 1 (TEACHER): CAMERA SCANNER & QUEUE
+         ========================================== -->
+    <div id="view-teacher-scanner" class="view-section">
+      <div class="card">
+        <div class="card-title">
+          <div>
+            <span>📷 የQR መታወቂያ መቃኛ</span>
+            <div id="scanner-session-tag" style="font-size:0.78rem; color:#34d399; font-weight:600; margin-top:2px;"></div>
+          </div>
+          <button id="cam-toggle-btn" onclick="toggleCamera()">ካሜራ ክፈት</button>
         </div>
         <div id="reader"></div>
-        <div id="scan-toast"></div>
-
-        <!-- Quick Simulation / Manual Entry -->
-        <div style="margin-top:14px; display:flex; gap:8px;">
-          <input type="text" id="manual-input" placeholder="Or type/test: Yonas Tewodros Mekonnen" />
-          <button class="secondary" onclick="handleManualSubmit()">Record</button>
-        </div>
+        <div id="scan-toast" class="toast"></div>
       </div>
 
       <div class="card">
         <div class="card-title">
-          <span>Pending Cloud Upload Queue</span>
-          <span id="queue-count" class="status-pill status-offline">0 Pending</span>
+          <span>ለመላክ በመጠባበቅ ላይ (Pending)</span>
+          <span id="queue-count" class="status-pill status-offline">0 ይጠብቃሉ</span>
         </div>
-        <p style="font-size:0.78rem; color:var(--muted); margin-bottom:10px;">
-          Scans stay here while offline and automatically clear the moment Google Sheets confirms upload.
+        <p style="font-size:0.8rem; color:var(--muted); margin-bottom:10px;">
+          ኢንተርኔት ሲቋረጥ የተቃኙ ተማሪዎች እዚህ ይቆያሉ፤ ኢንተርኔት ሲገኝ በራሱ ወደ ጉግል ሺት ልኮ ከዚህ ዝርዝር ያጸዳቸዋል።
         </p>
-        <div id="sync-error-box" class="toast-err" style="display:none; margin-bottom:10px; font-size:0.78rem;"></div>
+        <div id="sync-error-box" class="toast toast-err" style="display:none; margin-bottom:10px; font-size:0.8rem;"></div>
         <div id="pending-list"></div>
       </div>
     </div>
 
-    <!-- TAB 2: PERMANENT ON-DEVICE ARCHIVE -->
-    <div id="tab-archive" class="tab-pane">
+    <!-- ==========================================
+         VIEW 2 (TEACHER): PERMANENT DEVICE ARCHIVE
+         ========================================== -->
+    <div id="view-teacher-archive" class="view-section">
       <div class="card">
         <div class="card-title">
-          <span>Permanent Device History</span>
-          <button class="secondary" onclick="exportArchiveCSV()">Export CSV</button>
+          <span>🗄️ በስልኩ ላይ የተቀመጠ ቋሚ መዝገብ</span>
+          <button class="secondary" onclick="exportArchiveCSV()">በCSV አውርድ</button>
         </div>
-        <p style="font-size:0.78rem; color:var(--muted); margin-bottom:12px;">
-          Every scan is permanently stored on this phone (<span id="archive-count">0</span> total records), even after clearing from the upload queue.
+        <p style="font-size:0.8rem; color:var(--muted); margin-bottom:12px;">
+          በዚህ ስልክ የተቃኙ አጠቃላይ መረጃዎች (<span id="archive-count">0</span> መዝገቦች) በቋሚነት ተቀምጠዋል።
         </p>
         <div id="archive-list"></div>
       </div>
     </div>
 
-    <!-- TAB 3: QR BADGE GENERATOR -->
-    <div id="tab-badges" class="tab-pane">
+    <!-- ==========================================
+         VIEW 3 (ADMIN): STRICT QR BADGE GENERATOR
+         ========================================== -->
+    <div id="view-admin-badges" class="view-section">
       <div class="card no-print">
         <div class="card-title">
-          <span>3-Tier Name QR Badge Generator</span>
-          <button onclick="window.print()">Print Badges</button>
+          <span>🪪 የQR መታወቂያ ማዘጋጃ</span>
+          <div style="display:flex; gap:6px;">
+            <button class="secondary" onclick="clearPrintTray()">አጽዳ</button>
+            <button onclick="window.print()">አትም / Print (<span id="print-tray-count">0</span>)</button>
+          </div>
         </div>
-        <p style="font-size:0.78rem; color:var(--muted); margin-bottom:8px;">
-          Enter one student per line (First Father Grandfather). Automatically normalizes to <code>FIRST_FATHER_GRANDFATHER</code>.
-        </p>
-        <textarea id="roster-input" rows="6" oninput="renderBadges()">Yonas Tewodros Mekonnen
-Abebe Kebede Tadesse
-Sara Mohammed Ali
-Dawit Haile Selassie</textarea>
+
+        <!-- Strict Operational Mode Toggle -->
+        <div class="mode-switch">
+          <button id="mode-existing-btn" class="mode-btn active" onclick="switchAdminBadgeMode('existing')">🔄 ነባር ተማሪ (ከዝርዝር ምረጥ)</button>
+          <button id="mode-new-btn" class="mode-btn" onclick="switchAdminBadgeMode('new')">➕ አዲስ ተማሪ መዝግብ</button>
+        </div>
+
+        <!-- MODE A: Regenerate Existing Student (Search/Select Only) -->
+        <div id="admin-mode-existing">
+          <p style="font-size:0.8rem; color:var(--muted); margin-bottom:10px;">
+            የጠፋበትን ተማሪ መታወቂያ ያለ ፊደል ስህተት እንደገና ለማተም ከዚህ በታች ካለው ዝርዝር ውስጥ ይምረጡ።
+          </p>
+          <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:8px;">
+            <div>
+              <label class="field-label">ክፍል ይምረጡ</label>
+              <select id="existing-grade-filter" onchange="renderExistingStudentPicker()">
+                <option value="Grade 7" selected>7ኛ ክፍል</option>
+                <option value="Grade 8">8ኛ ክፍል</option>
+                <option value="Grade 9">9ኛ ክፍል</option>
+                <option value="Grade 10">10ኛ ክፍል</option>
+                <option value="Grade 11">11ኛ ክፍል</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label">በስም ይፈልጉ</label>
+              <input type="text" id="existing-search-input" placeholder="ስም ይጻፉ..." oninput="renderExistingStudentPicker()" />
+            </div>
+          </div>
+
+          <div class="student-pick-list" id="existing-student-list"></div>
+          <div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+            <span style="font-size:0.76rem; color:var(--muted);">ወደ ማተሚያ ለመጨመር የተማሪውን ስም ይጫኑ።</span>
+            <button class="secondary" style="font-size:0.76rem; padding:6px 10px;" onclick="addAllGradeToPrintTray()">ሁሉንም የክፍሉን ተማሪዎች ጨምር</button>
+          </div>
+        </div>
+
+        <!-- MODE B: Enroll New Student (Free-Text 3-Tier Input) -->
+        <div id="admin-mode-new" style="display:none;">
+          <p style="font-size:0.8rem; color:var(--muted); margin-bottom:10px;">
+            አዲስ ተማሪ በአማርኛ (ፊደል) ወደ ዋናው መዝገብ ለማስገባት እና የQR መታወቂያ ለማዘጋጀት ሙሉ ስም ያስገቡ።
+          </p>
+          <div style="margin-bottom:10px;">
+            <label class="field-label">ክፍል ይምረጡ</label>
+            <select id="new-student-grade">
+              <option value="Grade 7" selected>7ኛ ክፍል</option>
+              <option value="Grade 8">8ኛ ክፍል</option>
+              <option value="Grade 9">9ኛ ክፍል</option>
+              <option value="Grade 10">10ኛ ክፍል</option>
+              <option value="Grade 11">11ኛ ክፍል</option>
+            </select>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label class="field-label">ሙሉ ስም እስከ አያት (ምሳሌ፦ ዮናስ ቴዎድሮስ መኮንን)</label>
+            <input type="text" id="new-student-name" placeholder="ስም የአባት ስም የአያት ስም" />
+          </div>
+          <button style="width:100%;" onclick="enrollNewStudentAndGenerateBadge()">ተማሪውን መዝግብና መታወቂያ አዘጋጅ</button>
+        </div>
+
+        <div id="admin-badge-toast" class="toast"></div>
       </div>
+
+      <!-- Printable Badge Tray -->
       <div id="badge-container" class="badge-grid"></div>
     </div>
+
+    <!-- ==========================================
+         VIEW 4 (ADMIN): MASTER ROSTER & ARCHIVING
+         ========================================== -->
+    <div id="view-admin-roster" class="view-section">
+      <div class="card">
+        <div class="card-title">
+          <span>👥 የተማሪዎች ዋና መዝገብ (Master Roster)</span>
+          <select id="roster-grade-view" style="width:auto; padding:6px 10px; font-size:0.8rem;" onchange="renderAdminRosterTable()">
+            <option value="ALL">ሁሉም ክፍሎች</option>
+            <option value="Grade 7">7ኛ ክፍል</option>
+            <option value="Grade 8">8ኛ ክፍል</option>
+            <option value="Grade 9">9ኛ ክፍል</option>
+            <option value="Grade 10">10ኛ ክፍል</option>
+            <option value="Grade 11">11ኛ ክፍል</option>
+          </select>
+        </div>
+        <p style="font-size:0.8rem; color:var(--muted); margin-bottom:12px;">
+          የቀድሞ አቴንዳንስ መረጃ እንዳይጠፋ ተማሪዎች ሙሉ በሙሉ አይሰረዙም። ያቋረጡ ተማሪዎችን <strong>«የቦዘነ (Inactive)»</strong> በማድረግ ከመታወቂያ ዝርዝር መደበቅ ይችላሉ።
+        </p>
+        <div id="admin-roster-list"></div>
+      </div>
+    </div>
+
   </div>
 
-  <nav class="bottom-nav">
-    <button class="nav-btn active" onclick="switchTab('scanner', this)">📷 Scanner</button>
-    <button class="nav-btn" onclick="switchTab('archive', this)">🗄️ Device Log</button>
-    <button class="nav-btn" onclick="switchTab('badges', this)">🪪 QR Badges</button>
-  </nav>
+  <!-- Role-Adaptive Bottom Navigation -->
+  <nav id="bottom-nav" class="bottom-nav no-print"></nav>
 
   <script>
-    // Your Deployed Google Apps Script Endpoint
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxXXwZVFkyxBtwfYcmyi-Z9gyI-KXRKCM7yZqUAcqTNGz3sY9BK_4kYQ5aFEAXfU5KYCw/exec';
+
+    const GRADE_LABELS_AM = {
+      'Grade 7': '7ኛ ክፍል',
+      'Grade 8': '8ኛ ክፍል',
+      'Grade 9': '9ኛ ክፍል',
+      'Grade 10': '10ኛ ክፍል',
+      'Grade 11': '11ኛ ክፍል',
+      'All': 'ሁሉም ክፍሎች'
+    };
+
+    function translateGrade(g) {
+      return GRADE_LABELS_AM[g] || g;
+    }
+
+    // ==========================================
+    // 1. ETHIOPIAN CALENDAR (የኢትዮጵያ ዘመን አቆጣጠር)
+    // ==========================================
+    function getEthiopianDateObj(gcDate = new Date()) {
+      const todayUtc = Date.UTC(gcDate.getFullYear(), gcDate.getMonth(), gcDate.getDate());
+      const year = gcDate.getFullYear();
+      const month = gcDate.getMonth() + 1;
+      const day = gcDate.getDate();
+
+      // Ethiopian New Year falls on Sep 11, or Sep 12 in the Gregorian year preceding a Gregorian leap year
+      const isGcLeap = (y) => (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0);
+      const newYearDay = isGcLeap(year + 1) ? 12 : 11;
+
+      let ecYear, diffDays;
+      if (month < 9 || (month === 9 && day < newYearDay)) {
+        ecYear = year - 8;
+        const prevYear = year - 1;
+        const prevNewYearDay = isGcLeap(prevYear + 1) ? 12 : 11;
+        const prevNewYearUtc = Date.UTC(prevYear, 8, prevNewYearDay);
+        diffDays = Math.floor((todayUtc - prevNewYearUtc) / 86400000);
+      } else {
+        ecYear = year - 7;
+        const newYearUtc = Date.UTC(year, 8, newYearDay);
+        diffDays = Math.floor((todayUtc - newYearUtc) / 86400000);
+      }
+
+      const ecMonth = Math.floor(diffDays / 30) + 1;
+      const ecDay = (diffDays % 30) + 1;
+      const amharicMonths = [
+        'መስከረም', 'ጥቅምት', 'ኅዳር', 'ታኅሣሥ', 'ጥር', 'የካቲት',
+        'መጋቢት', 'ሚያዝያ', 'ግንቦት', 'ሰኔ', 'ሐምሌ', 'ነሐሴ', 'ጳጉሜን'
+      ];
+      const monthName = amharicMonths[ecMonth - 1] || 'ጳጉሜን';
+      const padM = String(ecMonth).padStart(2, '0');
+      const padD = String(ecDay).padStart(2, '0');
+
+      return {
+        // Chronologically sortable key for Google Sheets Pivot columns: e.g. "2019-02-17 (ጥቅምት 17)"
+        sortableKey: `${ecYear}-${padM}-${padD} (${monthName} ${ecDay})`,
+        // Full human-readable Amharic banner: e.g. "ጥቅምት 17፣ 2019 ዓ.ም"
+        fullAmharic: `${monthName} ${ecDay}፣ ${ecYear} ዓ.ም`
+      };
+    }
+
+    function getEthiopianDate() {
+      return getEthiopianDateObj().sortableKey;
+    }
+
+    // Seeded Default Accounts (Matches Apps Script defaults)
+    // PINs: admin=9999, kidase_g7=1071, mezmur_g8=1081, haymanot_g9=1091, mengbar_g10=1101, bible_g11=1111
+    const DEFAULT_USERS = [
+      { username: 'admin',       pinHash: '888df25ae35772424a560c7152a1de794440e0ea5cfee62828333a456a506e05', role: 'Admin',   subject: 'አስተዳደር',           grade: 'All' },
+      { username: 'kidase_g7',   pinHash: '54e2c26cf2e441a0357891a2a1287250a1e8f9e95a3c6371170d788b7687082c', role: 'Teacher', subject: 'ቅዳሴ',              grade: 'Grade 7' },
+      { username: 'mezmur_g8',   pinHash: '3c1f350226684f73c20233090a46e6619d62b26e0c7693860516722d9714d3d3', role: 'Teacher', subject: 'መዝሙር',             grade: 'Grade 8' },
+      { username: 'haymanot_g9', pinHash: '1a86259d96b963506b95f61a7e78f3a1106875629a59e781020263f74896c072', role: 'Teacher', subject: 'ትምህርተ ሃይማኖት',      grade: 'Grade 9' },
+      { username: 'mengbar_g10', pinHash: '8686214f660919c85595605136a4a5e446b91c09b3007f57f103d143198791a9', role: 'Teacher', subject: 'ክርስቲያናዊ ሥነ-ምግባር', grade: 'Grade 10' },
+      { username: 'bible_g11',   pinHash: '0ffe1abd1a08215353c233d6e009613e95eec4253832a761af28ff37ac5a150c', role: 'Teacher', subject: 'የመጽሐፍ ቅዱስ ጥናት',   grade: 'Grade 11' }
+    ];
+
+    const DEFAULT_ROSTER = [
+      { displayName: 'ዮናስ ቴዎድሮስ መኮንን', grade: 'Grade 7', status: 'Active' },
+      { displayName: 'አበበ ከበደ ታደሰ', grade: 'Grade 8', status: 'Active' },
+      { displayName: 'ሳራ መሐመድ አሊ', grade: 'Grade 9', status: 'Active' },
+      { displayName: 'ዳዊት ኃይለ ሥላሴ', grade: 'Grade 10', status: 'Active' },
+      { displayName: 'ሐና ግርማ በቀለ', grade: 'Grade 11', status: 'Active' }
+    ];
 
     let html5QrCode = null;
     let isCameraRunning = false;
     let isSyncing = false;
     let deferredInstallPrompt = null;
+    let printTray = [];
 
-    // 1. String Normalization Engine: "Yonas  Tewodros Mekonnen " -> "YONAS_TEWODROS_MEKONNEN"
+    // ==========================================
+    // 2. CRYPTOGRAPHIC SHA-256 ENGINE & AUTH
+    // ==========================================
+    async function sha256(message) {
+      const msgBuffer = new TextEncoder().encode(String(message).trim());
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function getDirectoryUsers() {
+      const cached = localStorage.getItem('directory_users');
+      return cached ? JSON.parse(cached) : DEFAULT_USERS;
+    }
+
+    function getMasterRoster() {
+      const cached = localStorage.getItem('master_roster');
+      return cached ? JSON.parse(cached) : DEFAULT_ROSTER;
+    }
+
+    function getActiveSession() {
+      const raw = localStorage.getItem('active_session');
+      return raw ? JSON.parse(raw) : null;
+    }
+
+    async function handleLogin() {
+      const uInput = document.getElementById('login-username').value.trim().toLowerCase();
+      const pInput = document.getElementById('login-pin').value.trim();
+
+      if (!uInput || !pInput) {
+        showElementToast('login-toast', 'እባክዎ የተጠቃሚ ስም እና የሚስጥር ቁጥር (PIN) ያስገቡ።', 'err');
+        return;
+      }
+
+      const inputHash = await sha256(pInput);
+      const users = getDirectoryUsers();
+      const matched = users.find(u => u.username.toLowerCase() === uInput && u.pinHash === inputHash);
+
+      if (!matched) {
+        playBeep('dup');
+        showElementToast('login-toast', 'የተሳሳተ የተጠቃሚ ስም ወይም PIN። አዲስ የተቀየረ ከሆነ «መለያዎችን አድስ» የሚለውን ይጫኑ።', 'err');
+        return;
+      }
+
+      localStorage.setItem('active_session', JSON.stringify(matched));
+      document.getElementById('login-pin').value = '';
+      document.getElementById('login-toast').style.display = 'none';
+      playBeep('success');
+      applyRoleInterface();
+    }
+
+    function handleLogout() {
+      stopCameraIfRunning();
+      localStorage.removeItem('active_session');
+      applyRoleInterface();
+    }
+
+    function applyRoleInterface() {
+      const session = getActiveSession();
+      const nav = document.getElementById('bottom-nav');
+      const logoutBtn = document.getElementById('logout-btn');
+      const subtitle = document.getElementById('user-role-subtitle');
+      document.getElementById('ec-today-banner').textContent = `📅 የዛሬ ቀን፦ ${getEthiopianDateObj().fullAmharic}`;
+
+      document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+
+      if (!session) {
+        subtitle.textContent = 'ተቆልፏል — እባክዎ ይግቡ';
+        logoutBtn.style.display = 'none';
+        nav.style.display = 'none';
+        document.getElementById('view-login').classList.add('active');
+        return;
+      }
+
+      logoutBtn.style.display = 'inline-block';
+      nav.style.display = 'flex';
+
+      if (session.role.toLowerCase() === 'admin') {
+        subtitle.textContent = `አስተዳዳሪ (Admin) • ${session.username}`;
+        nav.innerHTML = `
+          <button class="nav-btn active" onclick="switchView('view-admin-badges', this)">🪪 መታወቂያ ማዘጋጃ</button>
+          <button class="nav-btn" onclick="switchView('view-admin-roster', this)">👥 የተማሪዎች መዝገብ</button>
+        `;
+        document.getElementById('view-admin-badges').classList.add('active');
+        renderExistingStudentPicker();
+        renderAdminRosterTable();
+      } else {
+        subtitle.textContent = `${session.subject} • ${translateGrade(session.grade)} (${session.username})`;
+        document.getElementById('scanner-session-tag').textContent = `ክፍል፦ ${translateGrade(session.grade)} — አገልግሎት፦ ${session.subject}`;
+        nav.innerHTML = `
+          <button class="nav-btn active" onclick="switchView('view-teacher-scanner', this)">📷 መቃኛ (Scanner)</button>
+          <button class="nav-btn" onclick="switchView('view-teacher-archive', this)">🗄️ የስልክ መዝገብ</button>
+        `;
+        document.getElementById('view-teacher-scanner').classList.add('active');
+        updateTeacherUI();
+      }
+    }
+
+    function switchView(viewId, btn) {
+      if (viewId !== 'view-teacher-scanner') stopCameraIfRunning();
+      document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(viewId).classList.add('active');
+      if (btn) btn.classList.add('active');
+    }
+
+    // ==========================================
+    // 3. AMHARIC FIDEL & UTF-8 NORMALIZATION
+    // ==========================================
+    function decodePossibleMojibake(str) {
+      try {
+        if (/[\u0080-\u00ff]/.test(str)) {
+          return decodeURIComponent(escape(str));
+        }
+      } catch (e) {}
+      return str;
+    }
+
     function normalizeStudentName(raw) {
       if (!raw) return '';
-      return raw
+      const decoded = decodePossibleMojibake(String(raw));
+      return decoded
         .trim()
         .toUpperCase()
-        .replace(/[^A-Z0-9\s_]/g, '')
+        .replace(/[^\p{L}\p{N}\s_]/gu, '')
         .replace(/[\s_]+/g, '_');
     }
 
@@ -249,7 +586,6 @@ Dawit Haile Selassie</textarea>
         .join(' ');
     }
 
-    // 2. Web Audio API Feedback
     function playBeep(type) {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -264,53 +600,383 @@ Dawit Haile Selassie</textarea>
       } catch (e) {}
     }
 
-    // 3. Process Scan: Idempotent per day + Dual-Layer LocalStorage Write
+    function showElementToast(id, msg, type) {
+      const t = document.getElementById(id);
+      if (!t) return;
+      t.textContent = msg;
+      t.className = 'toast ' + (type === 'ok' ? 'toast-ok' : (type === 'dup' ? 'toast-dup' : 'toast-err'));
+    }
+
+    // ==========================================
+    // 4. TEACHER ATTENDANCE SCANNING & SYNC
+    // ==========================================
     function processScan(rawPayload) {
+      const session = getActiveSession();
+      if (!session || session.role.toLowerCase() === 'admin') return;
+
       const normalized = normalizeStudentName(rawPayload);
       if (!normalized || normalized.split('_').length < 2) {
-        showToast('Invalid QR format. Requires at least First & Father name.', 'err');
+        showElementToast('scan-toast', 'ልክ ያልሆነ የQR ኮድ። ቢያንስ የተማሪ እና የአባት ስም ያስፈልጋል።', 'err');
         return;
       }
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = getEthiopianDate();
       const archive = JSON.parse(localStorage.getItem('permanent_archive') || '[]');
 
-      // Check idempotency across today's permanent archive
-      const alreadyScannedToday = archive.some(
-        r => r.student === normalized && r.date === today
+      const alreadyScanned = archive.some(
+        r => r.student === normalized &&
+             r.date === today &&
+             r.subject === session.subject &&
+             r.grade === session.grade
       );
 
-      if (alreadyScannedToday) {
+      if (alreadyScanned) {
         playBeep('dup');
-        showToast(`Already Scanned Today: ${formatDisplayName(normalized)}`, 'dup');
+        showElementToast('scan-toast', `ቀድሞ ተመዝግቧል (${session.subject})፦ ${formatDisplayName(normalized)}`, 'dup');
         return;
       }
 
       const record = {
         id: Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toLocaleTimeString('am-ET'),
         date: today,
         student: normalized,
-        displayName: formatDisplayName(normalized)
+        displayName: formatDisplayName(normalized),
+        subject: session.subject,
+        grade: session.grade,
+        teacher: session.username
       };
 
-      // Write 1: Temporary Sync Queue
       const syncQueue = JSON.parse(localStorage.getItem('pending_sync') || '[]');
       syncQueue.push(record);
       localStorage.setItem('pending_sync', JSON.stringify(syncQueue));
 
-      // Write 2: Permanent Device Archive
       archive.unshift(record);
       localStorage.setItem('permanent_archive', JSON.stringify(archive));
 
       playBeep('success');
-      showToast(`Recorded: ${record.displayName}`, 'ok');
-      updateUI();
-      attemptSync(false);
+      showElementToast('scan-toast', `ተገኝቷል (${session.subject})፦ ${record.displayName}`, 'ok');
+      updateTeacherUI();
+      attemptAttendanceSync();
     }
 
-    // 4. Verified Google Sheets Sync (Only clears queue on explicit JSON status === "success")
-    async function attemptSync(manualTrigger = false) {
+    function updateTeacherUI() {
+      const syncQueue = JSON.parse(localStorage.getItem('pending_sync') || '[]');
+      const archive = JSON.parse(localStorage.getItem('permanent_archive') || '[]');
+
+      const queueCountEl = document.getElementById('queue-count');
+      if (queueCountEl) {
+        queueCountEl.textContent = `${syncQueue.length} ይጠብቃሉ`;
+        queueCountEl.className = syncQueue.length === 0 ? 'status-pill status-online' : 'status-pill status-offline';
+      }
+
+      const pendingContainer = document.getElementById('pending-list');
+      if (pendingContainer) {
+        pendingContainer.innerHTML = syncQueue.length === 0
+          ? `<div style="text-align:center; padding:18px; color:var(--muted); font-size:0.86rem;">✅ ሁሉም መረጃ ወደ ጉግል ሺት ተልኳል!</div>`
+          : syncQueue.map(r => `
+            <div class="list-item">
+              <div>
+                <div style="font-weight:600;">${r.displayName}</div>
+                <div class="mono">${translateGrade(r.grade)} • ${r.subject}</div>
+              </div>
+              <div class="mono">${r.timestamp}</div>
+            </div>
+          `).join('');
+      }
+
+      const archiveCountEl = document.getElementById('archive-count');
+      if (archiveCountEl) archiveCountEl.textContent = archive.length;
+
+      const archiveContainer = document.getElementById('archive-list');
+      if (archiveContainer) {
+        archiveContainer.innerHTML = archive.length === 0
+          ? `<div style="text-align:center; padding:18px; color:var(--muted); font-size:0.86rem;">በዚህ ስልክ ላይ እስካሁን የተመዘገበ መረጃ የለም።</div>`
+          : archive.map(r => `
+            <div class="list-item">
+              <div>
+                <div style="font-weight:600;">${r.displayName}</div>
+                <div class="mono">${translateGrade(r.grade || '')} • ${r.subject || ''}</div>
+              </div>
+              <div class="mono">${r.date} • ${r.timestamp}</div>
+            </div>
+          `).join('');
+      }
+    }
+
+    function exportArchiveCSV() {
+      const archive = JSON.parse(localStorage.getItem('permanent_archive') || '[]');
+      if (archive.length === 0) return;
+      const csvRows = ['ሰዓት,ቀን (ኢ.ዘ.አ),የተማሪ_ስም,ክፍል,አገልግሎት,መምህር'];
+      archive.forEach(r => {
+        csvRows.push(`"${r.timestamp}","${r.date}","${r.displayName}","${translateGrade(r.grade || '')}","${r.subject || ''}","${r.teacher || ''}"`);
+      });
+      const blob = new Blob(['\uFEFF' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `attendance_backup_${getEthiopianDate()}.csv`;
+      a.click();
+    }
+
+    // ==========================================
+    // 5. ADMIN DUAL-MODE BADGE GENERATOR & ROSTER
+    // ==========================================
+    function switchAdminBadgeMode(mode) {
+      const isExisting = mode === 'existing';
+      document.getElementById('mode-existing-btn').classList.toggle('active', isExisting);
+      document.getElementById('mode-new-btn').classList.toggle('active', !isExisting);
+      document.getElementById('admin-mode-existing').style.display = isExisting ? 'block' : 'none';
+      document.getElementById('admin-mode-new').style.display = isExisting ? 'none' : 'block';
+      document.getElementById('admin-badge-toast').style.display = 'none';
+    }
+
+    function renderExistingStudentPicker() {
+      const gradeFilter = document.getElementById('existing-grade-filter').value;
+      const query = document.getElementById('existing-search-input').value.trim().toLowerCase();
+      const roster = getMasterRoster();
+
+      const filtered = roster.filter(s =>
+        s.grade === gradeFilter &&
+        s.status !== 'Inactive' &&
+        s.displayName.toLowerCase().includes(query)
+      );
+
+      const container = document.getElementById('existing-student-list');
+      if (filtered.length === 0) {
+        container.innerHTML = `<div style="padding:14px; text-align:center; color:var(--muted); font-size:0.84rem;">በ${translateGrade(gradeFilter)} ውስጥ የተመዘገበ ተማሪ አልተገኘም።</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(s => `
+        <div class="student-pick-item" onclick="addStudentToPrintTray('${s.displayName.replace(/'/g, "\\'")}', '${s.grade}')">
+          <div>
+            <div style="font-weight:600; font-size:0.9rem;">${s.displayName}</div>
+            <div class="mono">${normalizeStudentName(s.displayName)}</div>
+          </div>
+          <button class="secondary" style="padding:5px 10px; font-size:0.76rem;">+ ምረጥ</button>
+        </div>
+      `).join('');
+    }
+
+    function addStudentToPrintTray(displayName, grade) {
+      const normalized = normalizeStudentName(displayName);
+      if (!normalized) return;
+
+      const exists = printTray.some(item => item.normalized === normalized && item.grade === grade);
+      if (!exists) {
+        printTray.push({ displayName: formatDisplayName(normalized), normalized, grade });
+        renderPrintTray();
+      }
+      showElementToast('admin-badge-toast', `«${formatDisplayName(normalized)}» ወደ ማተሚያ ተጨምሯል።`, 'ok');
+    }
+
+    function addAllGradeToPrintTray() {
+      const gradeFilter = document.getElementById('existing-grade-filter').value;
+      const roster = getMasterRoster().filter(s => s.grade === gradeFilter && s.status !== 'Inactive');
+      roster.forEach(s => {
+        const normalized = normalizeStudentName(s.displayName);
+        if (!printTray.some(item => item.normalized === normalized && item.grade === s.grade)) {
+          printTray.push({ displayName: formatDisplayName(normalized), normalized, grade: s.grade });
+        }
+      });
+      renderPrintTray();
+      showElementToast('admin-badge-toast', `የ${translateGrade(gradeFilter)} ${roster.length} ተማሪዎች ወደ ማተሚያ ተጨምረዋል።`, 'ok');
+    }
+
+    function enrollNewStudentAndGenerateBadge() {
+      const grade = document.getElementById('new-student-grade').value;
+      const rawName = document.getElementById('new-student-name').value;
+      const normalized = normalizeStudentName(rawName);
+
+      if (!normalized || normalized.split('_').length < 3) {
+        showElementToast('admin-badge-toast', 'እባክዎ የተማሪውን ሙሉ ስም እስከ አያት (3 ስሞች) ያስገቡ።', 'err');
+        return;
+      }
+
+      const cleanName = formatDisplayName(normalized);
+      const roster = getMasterRoster();
+
+      const duplicate = roster.find(
+        s => normalizeStudentName(s.displayName) === normalized && s.grade === grade
+      );
+      if (duplicate) {
+        showElementToast('admin-badge-toast', `${cleanName} በ${translateGrade(grade)} ውስጥ ቀድሞ ተመዝግቧል። «ነባር ተማሪ» የሚለውን ይጠቀሙ።`, 'dup');
+        return;
+      }
+
+      const newEntry = { displayName: cleanName, grade: grade, status: 'Active' };
+      roster.push(newEntry);
+      localStorage.setItem('master_roster', JSON.stringify(roster));
+
+      queueAdminRosterUpdate(newEntry);
+      addStudentToPrintTray(cleanName, grade);
+
+      document.getElementById('new-student-name').value = '';
+      renderExistingStudentPicker();
+      renderAdminRosterTable();
+      showElementToast('admin-badge-toast', `«${cleanName}» (${translateGrade(grade)}) ተመዝግቦ መታወቂያው ተዘጋጅቷል!`, 'ok');
+    }
+
+    function renderPrintTray() {
+      document.getElementById('print-tray-count').textContent = printTray.length;
+      const container = document.getElementById('badge-container');
+      container.innerHTML = '';
+
+      printTray.forEach((item, idx) => {
+        const card = document.createElement('div');
+        card.className = 'qr-badge';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-badge-btn';
+        removeBtn.textContent = '✕';
+        removeBtn.onclick = () => {
+          printTray.splice(idx, 1);
+          renderPrintTray();
+        };
+        card.appendChild(removeBtn);
+
+        const qrHolder = document.createElement('div');
+        card.appendChild(qrHolder);
+
+        const title = document.createElement('h4');
+        title.textContent = item.displayName;
+        const gradeTag = document.createElement('div');
+        gradeTag.className = 'grade-tag';
+        gradeTag.textContent = translateGrade(item.grade);
+        const sub = document.createElement('p');
+        sub.textContent = item.normalized;
+
+        card.appendChild(title);
+        card.appendChild(gradeTag);
+        card.appendChild(sub);
+        container.appendChild(card);
+
+        // UTF-8 byte serialization for Amharic Fidel
+        const utf8Payload = unescape(encodeURIComponent(item.normalized));
+        new QRCode(qrHolder, {
+          text: utf8Payload,
+          width: 135,
+          height: 135,
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      });
+    }
+
+    function clearPrintTray() {
+      printTray = [];
+      renderPrintTray();
+    }
+
+    function renderAdminRosterTable() {
+      const gradeFilter = document.getElementById('roster-grade-view').value;
+      const roster = getMasterRoster();
+      const filtered = gradeFilter === 'ALL' ? roster : roster.filter(s => s.grade === gradeFilter);
+
+      const container = document.getElementById('admin-roster-list');
+      if (filtered.length === 0) {
+        container.innerHTML = `<div style="padding:16px; text-align:center; color:var(--muted); font-size:0.86rem;">ምንም ተማሪ አልተገኘም።</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(s => {
+        const isInactive = s.status === 'Inactive';
+        const statusLabel = isInactive ? 'የቦዘነ (Inactive)' : 'ንቁ (Active)';
+        return `
+          <div class="list-item">
+            <div>
+              <div style="font-weight:600; ${isInactive ? 'text-decoration:line-through; color:var(--muted);' : ''}">${s.displayName}</div>
+              <div class="mono">${translateGrade(s.grade)} • ሁኔታ፦ <strong>${statusLabel}</strong></div>
+            </div>
+            <button class="secondary" style="padding:6px 10px; font-size:0.76rem;" onclick="toggleStudentStatus('${s.displayName.replace(/'/g, "\\'")}', '${s.grade}')">
+              ${isInactive ? 'ንቁ አድርግ (Activate)' : 'አቦዝን (Archive)'}
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleStudentStatus(displayName, grade) {
+      const roster = getMasterRoster();
+      const target = roster.find(s => s.displayName === displayName && s.grade === grade);
+      if (!target) return;
+
+      target.status = target.status === 'Inactive' ? 'Active' : 'Inactive';
+      localStorage.setItem('master_roster', JSON.stringify(roster));
+      queueAdminRosterUpdate(target);
+      renderAdminRosterTable();
+      renderExistingStudentPicker();
+    }
+
+    function queueAdminRosterUpdate(studentObj) {
+      const pendingRoster = JSON.parse(localStorage.getItem('pending_roster_updates') || '[]');
+      pendingRoster.push(studentObj);
+      localStorage.setItem('pending_roster_updates', JSON.stringify(pendingRoster));
+      syncAllWithCloud(false);
+    }
+
+    // ==========================================
+    // 6. TWO-WAY CLOUD SYNCHRONIZATION ENGINE
+    // ==========================================
+    async function syncAllWithCloud(manual = false) {
+      updateNetworkPill();
+      if (!navigator.onLine) return;
+      await flushAdminRosterUpdates();
+      await attemptAttendanceSync();
+      await syncDownDirectory(manual);
+    }
+
+    async function syncDownDirectory(showFeedback = false) {
+      if (!navigator.onLine) return;
+      try {
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'SYNC_DOWN' }),
+          redirect: 'follow'
+        });
+        const result = await response.json();
+        if (result && result.status === 'success') {
+          if (Array.isArray(result.users) && result.users.length > 0) {
+            localStorage.setItem('directory_users', JSON.stringify(result.users));
+          }
+          if (Array.isArray(result.roster) && result.roster.length > 0) {
+            localStorage.setItem('master_roster', JSON.stringify(result.roster));
+          }
+          renderExistingStudentPicker();
+          renderAdminRosterTable();
+          if (showFeedback) {
+            showElementToast('login-toast', `${result.users.length} መለያዎች እና ${result.roster.length} ተማሪዎች ከጉግል ሺት ተመሳስለዋል።`, 'ok');
+          }
+        }
+      } catch (e) {
+        console.warn('Directory sync deferred:', e);
+      }
+    }
+
+    async function flushAdminRosterUpdates() {
+      const pendingRoster = JSON.parse(localStorage.getItem('pending_roster_updates') || '[]');
+      if (pendingRoster.length === 0 || !navigator.onLine) return;
+
+      try {
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'ADMIN_ROSTER_UPDATE', updates: pendingRoster }),
+          redirect: 'follow'
+        });
+        const result = await response.json();
+        if (result && result.status === 'success') {
+          localStorage.setItem('pending_roster_updates', JSON.stringify([]));
+          if (Array.isArray(result.roster)) {
+            localStorage.setItem('master_roster', JSON.stringify(result.roster));
+          }
+        }
+      } catch (e) {
+        console.warn('Admin roster update deferred:', e);
+      }
+    }
+
+    async function attemptAttendanceSync() {
       updateNetworkPill();
       if (!navigator.onLine || isSyncing) return;
 
@@ -319,106 +985,45 @@ Dawit Haile Selassie</textarea>
 
       isSyncing = true;
       const errBox = document.getElementById('sync-error-box');
-      errBox.style.display = 'none';
-      document.getElementById('sync-now-btn').textContent = 'Syncing...';
+      if (errBox) errBox.style.display = 'none';
+      document.getElementById('sync-now-btn').textContent = 'በመላክ ላይ...';
 
       try {
-        // Send as text/plain without no-cors so we can read the actual JSON response from Google
         const response = await fetch(GOOGLE_SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ records: syncQueue }),
+          body: JSON.stringify({ action: 'SYNC_ATTENDANCE', records: syncQueue }),
           redirect: 'follow'
         });
 
-        const textResult = await response.text();
-        let result = null;
-        try {
-          result = JSON.parse(textResult);
-        } catch (parseErr) {
-          throw new Error('Apps Script returned HTML instead of JSON. Re-deploy your Apps Script as a New Version with access set to Anyone.');
-        }
-
+        const result = JSON.parse(await response.text());
         if (result && result.status === 'success') {
-          // Remove only the records that were successfully uploaded
           const uploadedIds = new Set(syncQueue.map(r => r.id));
           const currentQueue = JSON.parse(localStorage.getItem('pending_sync') || '[]');
           const remaining = currentQueue.filter(r => !uploadedIds.has(r.id));
           localStorage.setItem('pending_sync', JSON.stringify(remaining));
-          updateUI();
+          updateTeacherUI();
         } else {
-          throw new Error((result && result.message) || 'Unknown script error');
+          throw new Error((result && result.message) || 'የስክሪፕት ስህተት ተፈጥሯል');
         }
       } catch (error) {
-        console.error('Sync failed:', error);
-        errBox.textContent = 'Sync Blocked: ' + error.message;
-        errBox.style.display = 'block';
+        if (errBox) {
+          errBox.textContent = 'መላክ አልተቻለም፦ ' + error.message;
+          errBox.style.display = 'block';
+        }
       } finally {
         isSyncing = false;
-        document.getElementById('sync-now-btn').textContent = 'Sync Now';
+        document.getElementById('sync-now-btn').textContent = 'አመሳስል';
       }
     }
 
-    // 5. UI Rendering & Helpers
-    function updateUI() {
-      const syncQueue = JSON.parse(localStorage.getItem('pending_sync') || '[]');
-      const archive = JSON.parse(localStorage.getItem('permanent_archive') || '[]');
-
-      document.getElementById('queue-count').textContent = `${syncQueue.length} Pending`;
-      document.getElementById('queue-count').className = syncQueue.length === 0
-        ? 'status-pill status-online'
-        : 'status-pill status-offline';
-
-      const pendingContainer = document.getElementById('pending-list');
-      if (syncQueue.length === 0) {
-        pendingContainer.innerHTML = `<div style="text-align:center; padding:18px; color:var(--muted); font-size:0.85rem;">✅ All scans uploaded to Google Sheets! Dashboard queue is clear.</div>`;
-      } else {
-        pendingContainer.innerHTML = syncQueue.map(r => `
-          <div class="list-item">
-            <div>
-              <div style="font-weight:600;">${r.displayName}</div>
-              <div class="mono">${r.student}</div>
-            </div>
-            <div class="mono">${new Date(r.timestamp).toLocaleTimeString()}</div>
-          </div>
-        `).join('');
-      }
-
-      document.getElementById('archive-count').textContent = archive.length;
-      const archiveContainer = document.getElementById('archive-list');
-      archiveContainer.innerHTML = archive.length === 0
-        ? `<div style="text-align:center; padding:18px; color:var(--muted); font-size:0.85rem;">No scans recorded on this device yet.</div>`
-        : archive.map(r => `
-          <div class="list-item">
-            <div>
-              <div style="font-weight:600;">${r.displayName}</div>
-              <div class="mono">${r.student}</div>
-            </div>
-            <div class="mono">${r.date} ${new Date(r.timestamp).toLocaleTimeString()}</div>
-          </div>
-        `).join('');
-    }
-
-    function showToast(msg, type) {
-      const t = document.getElementById('scan-toast');
-      t.textContent = msg;
-      t.className = type === 'ok' ? 'toast-ok' : (type === 'dup' ? 'toast-dup' : 'toast-err');
-    }
-
-    function handleManualSubmit() {
-      const input = document.getElementById('manual-input');
-      if (!input.value.trim()) return;
-      processScan(input.value);
-      input.value = '';
-    }
-
-    // 6. Camera Control
+    // ==========================================
+    // 7. CAMERA HARDWARE & LIFECYCLE CONTROLS
+    // ==========================================
     async function toggleCamera() {
       const btn = document.getElementById('cam-toggle-btn');
-      if (isCameraRunning && html5QrCode) {
-        await html5QrCode.stop();
-        isCameraRunning = false;
-        btn.textContent = 'Start Camera';
+      if (isCameraRunning) {
+        await stopCameraIfRunning();
         return;
       }
       try {
@@ -430,76 +1035,32 @@ Dawit Haile Selassie</textarea>
           () => {}
         );
         isCameraRunning = true;
-        btn.textContent = 'Stop Camera';
+        btn.textContent = 'ካሜራ አቁም';
       } catch (err) {
-        showToast('Camera requires HTTPS and permission: ' + err, 'err');
+        showElementToast('scan-toast', 'የካሜራ ፈቃድ ያስፈልጋል፦ ' + err, 'err');
       }
     }
 
-    // 7. Printable QR Badges
-    function renderBadges() {
-      const lines = document.getElementById('roster-input').value.split('\n').map(l => l.trim()).filter(Boolean);
-      const container = document.getElementById('badge-container');
-      container.innerHTML = '';
-      lines.forEach((line, idx) => {
-        const norm = normalizeStudentName(line);
-        if (!norm) return;
-        const card = document.createElement('div');
-        card.className = 'qr-badge';
-        const qrHolder = document.createElement('div');
-        qrHolder.id = 'qr-item-' + idx;
-        card.appendChild(qrHolder);
-        const title = document.createElement('h4');
-        title.textContent = formatDisplayName(norm);
-        const sub = document.createElement('p');
-        sub.textContent = norm;
-        card.appendChild(title);
-        card.appendChild(sub);
-        container.appendChild(card);
-
-        new QRCode(qrHolder, {
-          text: norm,
-          width: 140,
-          height: 140,
-          correctLevel: QRCode.CorrectLevel.M
-        });
-      });
-    }
-
-    // 8. Export Permanent Device Log
-    function exportArchiveCSV() {
-      const archive = JSON.parse(localStorage.getItem('permanent_archive') || '[]');
-      if (archive.length === 0) return;
-      const csvRows = ['Timestamp,Date,Student_Name'];
-      archive.forEach(r => {
-        csvRows.push(`"${r.timestamp}","${r.date}","${r.displayName}"`);
-      });
-      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `attendance_device_backup_${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
-    }
-
-    function switchTab(tab, btn) {
-      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-      document.getElementById('tab-' + tab).classList.add('active');
-      btn.classList.add('active');
+    async function stopCameraIfRunning() {
+      const btn = document.getElementById('cam-toggle-btn');
+      if (isCameraRunning && html5QrCode) {
+        try { await html5QrCode.stop(); } catch (e) {}
+        isCameraRunning = false;
+        if (btn) btn.textContent = 'ካሜራ ክፈት';
+      }
     }
 
     function updateNetworkPill() {
       const pill = document.getElementById('net-status');
       if (navigator.onLine) {
-        pill.textContent = '● Online';
+        pill.textContent = '● መስመር ላይ';
         pill.className = 'status-pill status-online';
       } else {
-        pill.textContent = '● Offline';
+        pill.textContent = '● ከመስመር ውጭ';
         pill.className = 'status-pill status-offline';
       }
     }
 
-    // 9. Native PWA Install Prompt Handler
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredInstallPrompt = e;
@@ -516,14 +1077,13 @@ Dawit Haile Selassie</textarea>
       deferredInstallPrompt = null;
     });
 
-    window.addEventListener('online', () => attemptSync(false));
+    window.addEventListener('online', () => syncAllWithCloud(false));
     window.addEventListener('offline', updateNetworkPill);
 
     window.addEventListener('DOMContentLoaded', () => {
       updateNetworkPill();
-      updateUI();
-      renderBadges();
-      attemptSync(false);
+      applyRoleInterface();
+      syncAllWithCloud(false);
     });
   </script>
 </body>
