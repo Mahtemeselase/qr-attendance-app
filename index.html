@@ -61,7 +61,7 @@
       background: var(--card); border: 1px solid var(--border);
       border-radius: 12px; padding: 16px; margin-bottom: 16px;
     }
-    .card-title { font-size: 0.96rem; font-weight: 700; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .card-title { font-size: 0.96rem; font-weight: 700; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 
     #install-banner {
       display: none; background: linear-gradient(90deg, #1d4ed8, #2563eb);
@@ -139,9 +139,8 @@
       background: #fff; color: #000; padding: 14px; border-radius: 10px;
       text-align: center; border: 2px solid #000; display: flex; flex-direction: column; align-items: center; position: relative;
     }
-    .qr-badge h4 { font-size: 0.96rem; margin-top: 8px; }
-    .qr-badge .grade-tag { font-size: 0.78rem; font-weight: 700; color: #1e3a8a; margin-top: 2px; }
-    .qr-badge p { font-family: monospace; font-size: 0.68rem; color: #444; margin-top: 2px; word-break: break-all; }
+    .qr-badge h4 { font-size: 0.98rem; margin-top: 8px; font-weight: 700; }
+    .qr-badge .grade-tag { font-size: 0.8rem; font-weight: 700; color: #1e3a8a; margin-top: 3px; }
     .qr-badge .remove-badge-btn {
       position: absolute; top: 6px; right: 6px; background: #ef4444; color: #fff;
       font-size: 0.68rem; padding: 2px 6px; border-radius: 4px;
@@ -221,7 +220,10 @@
             <span>📷 የQR መታወቂያ መቃኛ</span>
             <div id="scanner-session-tag" style="font-size:0.78rem; color:#34d399; font-weight:600; margin-top:2px;"></div>
           </div>
-          <button id="cam-toggle-btn" onclick="toggleCamera()">ካሜራ ክፈት</button>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button id="mute-toggle-btn" class="secondary" style="padding:8px 10px; font-size:0.78rem;" onclick="toggleSoundMute()">🔇 ድምፅ ጠፍቷል</button>
+            <button id="cam-toggle-btn" onclick="toggleCamera()">ካሜራ ክፈት</button>
+          </div>
         </div>
         <div id="reader"></div>
         <div id="scan-toast" class="toast"></div>
@@ -386,7 +388,6 @@
       const month = gcDate.getMonth() + 1;
       const day = gcDate.getDate();
 
-      // Ethiopian New Year falls on Sep 11, or Sep 12 in the Gregorian year preceding a Gregorian leap year
       const isGcLeap = (y) => (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0);
       const newYearDay = isGcLeap(year + 1) ? 12 : 11;
 
@@ -414,9 +415,7 @@
       const padD = String(ecDay).padStart(2, '0');
 
       return {
-        // Chronologically sortable key for Google Sheets Pivot columns: e.g. "2019-02-17 (ጥቅምት 17)"
         sortableKey: `${ecYear}-${padM}-${padD} (${monthName} ${ecDay})`,
-        // Full human-readable Amharic banner: e.g. "ጥቅምት 17፣ 2019 ዓ.ም"
         fullAmharic: `${monthName} ${ecDay}፣ ${ecYear} ዓ.ም`
       };
     }
@@ -425,8 +424,7 @@
       return getEthiopianDateObj().sortableKey;
     }
 
-    // Seeded Default Accounts (Matches Apps Script defaults)
-    // PINs: admin=9999, kidase_g7=1071, mezmur_g8=1081, haymanot_g9=1091, mengbar_g10=1101, bible_g11=1111
+    // Seeded Default Accounts
     const DEFAULT_USERS = [
       { username: 'admin',       pinHash: '888df25ae35772424a560c7152a1de794440e0ea5cfee62828333a456a506e05', role: 'Admin',   subject: 'አስተዳደር',           grade: 'All' },
       { username: 'kidase_g7',   pinHash: '54e2c26cf2e441a0357891a2a1287250a1e8f9e95a3c6371170d788b7687082c', role: 'Teacher', subject: 'ቅዳሴ',              grade: 'Grade 7' },
@@ -449,6 +447,21 @@
     let isSyncing = false;
     let deferredInstallPrompt = null;
     let printTray = [];
+
+    // Audio is MUTED by default; teacher can toggle if desired
+    let isSoundEnabled = localStorage.getItem('attendance_sound_enabled') === 'true';
+
+    function updateMuteButtonUI() {
+      const btn = document.getElementById('mute-toggle-btn');
+      if (!btn) return;
+      btn.textContent = isSoundEnabled ? '🔊 ድምፅ በርቷል' : '🔇 ድምፅ ጠፍቷል';
+    }
+
+    function toggleSoundMute() {
+      isSoundEnabled = !isSoundEnabled;
+      localStorage.setItem('attendance_sound_enabled', isSoundEnabled ? 'true' : 'false');
+      updateMuteButtonUI();
+    }
 
     // ==========================================
     // 2. CRYPTOGRAPHIC SHA-256 ENGINE & AUTH
@@ -497,7 +510,6 @@
       localStorage.setItem('active_session', JSON.stringify(matched));
       document.getElementById('login-pin').value = '';
       document.getElementById('login-toast').style.display = 'none';
-      playBeep('success');
       applyRoleInterface();
     }
 
@@ -513,6 +525,7 @@
       const logoutBtn = document.getElementById('logout-btn');
       const subtitle = document.getElementById('user-role-subtitle');
       document.getElementById('ec-today-banner').textContent = `📅 የዛሬ ቀን፦ ${getEthiopianDateObj().fullAmharic}`;
+      updateMuteButtonUI();
 
       document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
 
@@ -557,21 +570,11 @@
     }
 
     // ==========================================
-    // 3. AMHARIC FIDEL & UTF-8 NORMALIZATION
+    // 3. LOSSLESS UTF-8 BASE64 QR ENCODER/DECODER
     // ==========================================
-    function decodePossibleMojibake(str) {
-      try {
-        if (/[\u0080-\u00ff]/.test(str)) {
-          return decodeURIComponent(escape(str));
-        }
-      } catch (e) {}
-      return str;
-    }
-
     function normalizeStudentName(raw) {
       if (!raw) return '';
-      const decoded = decodePossibleMojibake(String(raw));
-      return decoded
+      return String(raw)
         .trim()
         .toUpperCase()
         .replace(/[^\p{L}\p{N}\s_]/gu, '')
@@ -579,14 +582,52 @@
     }
 
     function formatDisplayName(normalized) {
-      return normalized
+      return String(normalized || '')
         .split('_')
         .filter(Boolean)
         .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
         .join(' ');
     }
 
+    // Encodes "Grade 7|ዮናስ_ቴዎድሮስ_መኮንን" into pure 7-bit ASCII Base64 ("B64:...")
+    // so camera scanners never corrupt Amharic Fidel into Windows-1252 or Shift_JIS
+    function encodeQrPayload(grade, normalizedName) {
+      const raw = `${grade}|${normalizedName}`;
+      const utf8Bytes = new TextEncoder().encode(raw);
+      let binaryStr = '';
+      for (let i = 0; i < utf8Bytes.length; i++) {
+        binaryStr += String.fromCharCode(utf8Bytes[i]);
+      }
+      return 'B64:' + btoa(binaryStr);
+    }
+
+    function decodeQrPayload(rawScanned) {
+      const trimmed = String(rawScanned || '').trim();
+      if (trimmed.startsWith('B64:')) {
+        try {
+          const b64 = trimmed.slice(4).trim();
+          const binaryStr = atob(b64);
+          const bytes = new Uint8Array(binaryStr.length);
+          for (let i = 0; i < binaryStr.length; i++) {
+            bytes[i] = binaryStr.charCodeAt(i);
+          }
+          const decoded = new TextDecoder('utf-8').decode(bytes);
+          const pipeIdx = decoded.indexOf('|');
+          if (pipeIdx !== -1) {
+            const badgeGrade = decoded.slice(0, pipeIdx).trim();
+            const normName = normalizeStudentName(decoded.slice(pipeIdx + 1));
+            return { badgeGrade, normalized: normName, valid: true };
+          }
+        } catch (e) {
+          return { badgeGrade: null, normalized: '', valid: false };
+        }
+      }
+      // Legacy plain-text fallback
+      return { badgeGrade: null, normalized: normalizeStudentName(trimmed), valid: true };
+    }
+
     function playBeep(type) {
+      if (!isSoundEnabled) return;
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = ctx.createOscillator();
@@ -594,9 +635,9 @@
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.frequency.value = type === 'success' ? 880 : 320;
-        gain.gain.value = 0.12;
+        gain.gain.value = 0.08;
         osc.start();
-        osc.stop(ctx.currentTime + (type === 'success' ? 0.12 : 0.25));
+        osc.stop(ctx.currentTime + (type === 'success' ? 0.1 : 0.2));
       } catch (e) {}
     }
 
@@ -608,16 +649,58 @@
     }
 
     // ==========================================
-    // 4. TEACHER ATTENDANCE SCANNING & SYNC
+    // 4. TEACHER SCANNING WITH STRICT GRADE GUARD
     // ==========================================
     function processScan(rawPayload) {
       const session = getActiveSession();
       if (!session || session.role.toLowerCase() === 'admin') return;
 
-      const normalized = normalizeStudentName(rawPayload);
-      if (!normalized || normalized.split('_').length < 2) {
-        showElementToast('scan-toast', 'ልክ ያልሆነ የQR ኮድ። ቢያንስ የተማሪ እና የአባት ስም ያስፈልጋል።', 'err');
+      const parsed = decodeQrPayload(rawPayload);
+      const normalized = parsed.normalized;
+
+      if (!parsed.valid || !normalized || normalized.split('_').length < 2) {
+        showElementToast('scan-toast', 'ልክ ያልሆነ የQR ኮድ። እባክዎ አዲሱን መታወቂያ ያትሙ።', 'err');
         return;
+      }
+
+      const cleanDisplayName = formatDisplayName(normalized);
+      const roster = getMasterRoster();
+
+      // 1. Check Badge Grade directly encoded inside the QR Code
+      if (parsed.badgeGrade && parsed.badgeGrade.toUpperCase() !== session.grade.toUpperCase()) {
+        playBeep('dup');
+        showElementToast(
+          'scan-toast',
+          `⛔ የተሳሳተ ክፍል! «${cleanDisplayName}» የ${translateGrade(parsed.badgeGrade)} ተማሪ ነው (እርስዎ የ${translateGrade(session.grade)} መምህር ነዎት)።`,
+          'err'
+        );
+        return;
+      }
+
+      // 2. Cross-check Master Roster for grade mismatch or Inactive status
+      const matchingRosterEntries = roster.filter(
+        s => normalizeStudentName(s.displayName) === normalized
+      );
+
+      if (matchingRosterEntries.length > 0) {
+        const inTeacherGrade = matchingRosterEntries.find(
+          s => s.grade.toUpperCase() === session.grade.toUpperCase()
+        );
+        if (!inTeacherGrade) {
+          const otherGrade = matchingRosterEntries[0].grade;
+          playBeep('dup');
+          showElementToast(
+            'scan-toast',
+            `⛔ የተሳሳተ ክፍል! «${cleanDisplayName}» በመዝገብ ላይ የ${translateGrade(otherGrade)} ተማሪ ነው።`,
+            'err'
+          );
+          return;
+        }
+        if (inTeacherGrade.status === 'Inactive') {
+          playBeep('dup');
+          showElementToast('scan-toast', `⛔ «${cleanDisplayName}» በመዝገብ ላይ የቦዘነ (Inactive) ነው።`, 'err');
+          return;
+        }
       }
 
       const today = getEthiopianDate();
@@ -632,7 +715,7 @@
 
       if (alreadyScanned) {
         playBeep('dup');
-        showElementToast('scan-toast', `ቀድሞ ተመዝግቧል (${session.subject})፦ ${formatDisplayName(normalized)}`, 'dup');
+        showElementToast('scan-toast', `ቀድሞ ተመዝግቧል (${session.subject})፦ ${cleanDisplayName}`, 'dup');
         return;
       }
 
@@ -641,9 +724,10 @@
         timestamp: new Date().toLocaleTimeString('am-ET'),
         date: today,
         student: normalized,
-        displayName: formatDisplayName(normalized),
+        displayName: cleanDisplayName,
         subject: session.subject,
         grade: session.grade,
+        badgeGrade: parsed.badgeGrade || session.grade,
         teacher: session.username
       };
 
@@ -655,7 +739,7 @@
       localStorage.setItem('permanent_archive', JSON.stringify(archive));
 
       playBeep('success');
-      showElementToast('scan-toast', `ተገኝቷል (${session.subject})፦ ${record.displayName}`, 'ok');
+      showElementToast('scan-toast', `✔️ ተገኝቷል (${session.subject})፦ ${record.displayName}`, 'ok');
       updateTeacherUI();
       attemptAttendanceSync();
     }
@@ -750,8 +834,8 @@
       container.innerHTML = filtered.map(s => `
         <div class="student-pick-item" onclick="addStudentToPrintTray('${s.displayName.replace(/'/g, "\\'")}', '${s.grade}')">
           <div>
-            <div style="font-weight:600; font-size:0.9rem;">${s.displayName}</div>
-            <div class="mono">${normalizeStudentName(s.displayName)}</div>
+            <div style="font-weight:600; font-size:0.92rem;">${s.displayName}</div>
+            <div class="mono">${translateGrade(s.grade)}</div>
           </div>
           <button class="secondary" style="padding:5px 10px; font-size:0.76rem;">+ ምረጥ</button>
         </div>
@@ -843,20 +927,17 @@
         const gradeTag = document.createElement('div');
         gradeTag.className = 'grade-tag';
         gradeTag.textContent = translateGrade(item.grade);
-        const sub = document.createElement('p');
-        sub.textContent = item.normalized;
 
         card.appendChild(title);
         card.appendChild(gradeTag);
-        card.appendChild(sub);
         container.appendChild(card);
 
-        // UTF-8 byte serialization for Amharic Fidel
-        const utf8Payload = unescape(encodeURIComponent(item.normalized));
+        // Encode Grade + Amharic Name as pure 7-bit ASCII Base64 ("B64:...")
+        const asciiSafePayload = encodeQrPayload(item.grade, item.normalized);
         new QRCode(qrHolder, {
-          text: utf8Payload,
-          width: 135,
-          height: 135,
+          text: asciiSafePayload,
+          width: 140,
+          height: 140,
           correctLevel: QRCode.CorrectLevel.M
         });
       });
