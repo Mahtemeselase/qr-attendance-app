@@ -1,4 +1,4 @@
-const CACHE_NAME = 'attendance-pwa-v6';
+const CACHE_NAME = 'attendance-pwa-v7';
 const STATIC_ASSETS = [
   './',
   './index.html',

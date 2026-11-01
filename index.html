@@ -962,15 +962,21 @@
       container.innerHTML = filtered.map(s => {
         const isInactive = s.status === 'Inactive';
         const statusLabel = isInactive ? 'የቦዘነ (Inactive)' : 'ንቁ (Active)';
+        const escapedName = s.displayName.replace(/'/g, "\\'");
         return `
           <div class="list-item">
             <div>
               <div style="font-weight:600; ${isInactive ? 'text-decoration:line-through; color:var(--muted);' : ''}">${s.displayName}</div>
               <div class="mono">${translateGrade(s.grade)} • ሁኔታ፦ <strong>${statusLabel}</strong></div>
             </div>
-            <button class="secondary" style="padding:6px 10px; font-size:0.76rem;" onclick="toggleStudentStatus('${s.displayName.replace(/'/g, "\\'")}', '${s.grade}')">
-              ${isInactive ? 'ንቁ አድርግ (Activate)' : 'አቦዝን (Archive)'}
-            </button>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <button class="secondary" style="padding:6px 10px; font-size:0.75rem;" onclick="toggleStudentStatus('${escapedName}', '${s.grade}')">
+                ${isInactive ? 'ንቁ አድርግ' : 'አቦዝን'}
+              </button>
+              <button class="danger" style="padding:6px 10px; font-size:0.75rem;" onclick="deleteStudentPermanently('${escapedName}', '${s.grade}')">
+                🗑️ ሰርዝ
+              </button>
+            </div>
           </div>
         `;
       }).join('');
@@ -987,6 +993,41 @@
       renderAdminRosterTable();
       renderExistingStudentPicker();
     }
+
+    function deleteStudentPermanently(displayName, grade) {
+      const confirmed = confirm(
+        `እርግጠኛ ነዎት? «${displayName}» (${translateGrade(grade)}) ከዋናው መዝገብ እና ከአቴንዳንስ ታሪክ እስከመጨረሻው ይሰረዛል!`
+      );
+      if (!confirmed) return;
+
+      // 1. Remove from local Master Roster
+      const roster = getMasterRoster().filter(
+        s => !(s.displayName === displayName && s.grade === grade)
+      );
+      localStorage.setItem('master_roster', JSON.stringify(roster));
+
+      // 2. Remove from local Print Tray if present
+      const norm = normalizeStudentName(displayName);
+      printTray = printTray.filter(item => !(item.normalized === norm && item.grade === grade));
+      renderPrintTray();
+
+      // 3. Remove any local device archive/pending scans for this deleted test student
+      const archive = JSON.parse(localStorage.getItem('permanent_archive') || '[]').filter(
+        r => !(r.student === norm && r.grade === grade)
+      );
+      localStorage.setItem('permanent_archive', JSON.stringify(archive));
+
+      const pendingSync = JSON.parse(localStorage.getItem('pending_sync') || '[]').filter(
+        r => !(r.student === norm && r.grade === grade)
+      );
+      localStorage.setItem('pending_sync', JSON.stringify(pendingSync));
+
+      // 4. Queue cascading deletion to Google Sheets
+      queueAdminRosterUpdate({ displayName, grade, status: 'DELETED' });
+      renderAdminRosterTable();
+      renderExistingStudentPicker();
+    }
+    
 
     function queueAdminRosterUpdate(studentObj) {
       const pendingRoster = JSON.parse(localStorage.getItem('pending_roster_updates') || '[]');
@@ -1020,7 +1061,7 @@
           if (Array.isArray(result.users) && result.users.length > 0) {
             localStorage.setItem('directory_users', JSON.stringify(result.users));
           }
-          if (Array.isArray(result.roster) && result.roster.length > 0) {
+          if (Array.isArray(result.roster)) {
             localStorage.setItem('master_roster', JSON.stringify(result.roster));
           }
           renderExistingStudentPicker();
